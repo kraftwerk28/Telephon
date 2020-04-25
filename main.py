@@ -72,7 +72,10 @@ async def on_new_message_me(event: events.NewMessage):
         await handle_exit()
 
     elif command == 'get_msg':
-        (entity_like, cnt) = re.match(r'(\w+)(?:\s+)?(?:(\d+))?', text).groups()
+        (entity_like, cnt) = re.match(
+            r'(\w+)(?:\s+)?(?:(\d+))?',
+            text
+        ).groups()
         cnt = int(cnt) if cnt else 5
         try:
             entity = await client.get_entity(entity_like)
@@ -150,7 +153,7 @@ async def on_new_message_me(event: events.NewMessage):
             await msg.delete()
             await flip_sticker(target)
 
-    if command == 'toggle_tagall':
+    elif command == 'toggle_tagall':
         await msg.delete()
         allow_tag_all = not allow_tag_all
         await client.send_message(
@@ -160,25 +163,73 @@ async def on_new_message_me(event: events.NewMessage):
             )
         )
 
-    if command == 'chat_id':
-        await msg.delete()
-        await client.send_message(
-            'me',
-            f'{msg.chat.title}: <code>{msg.chat_id}</code>',
-            parse_mode='HTML'
-        )
+    if command == 'typing':
+        try:
+            await client.action(
+                msg.chat.id,
+                'typing',
+            )
+        except Exception as e:
+            print(e)
 
-    if command == 'user_id':
+    elif command == 'id':
         await msg.delete()
-        users = await client.get_participants(msg.chat_id, search=text, limit=20)
-        await client.send_message(
-            'me',
-            '\n'.join(
-                f'{utils.mention(u)}: <code>{u.id}</code>' for u in users),
-            parse_mode='HTML'
-        )
+        reply = await msg.get_reply_message()
+        sender: tl.types.User = msg.sender
+        chat: tl.types.Chat = msg.chat
 
-    if not command and append_dot and text[-1].isalpha():
+        text = f'<b>Chat</b>: {chat.title} [<code>{chat.id}</code>]\n'
+
+        def repr_resource(type: str, r: tl.types.Document):
+            return '\n'.join([
+                f'<b>{type}</b>:',
+                f'  <i>id</i>: <code>{r.id}</code>',
+                f'  <i>size</i>: <code>{r.size} bytes</code>',
+                f'  <i>mime type</i>: <code>{r.mime_type}</code>',
+                f'  <i>access hash</i>: <code>{r.access_hash}</code>'
+            ])
+
+        if reply is not None:
+
+            text += f'<b>User</b>: {utils.mention(sender)} <code>{sender.id}</code>\n'
+            # # If message has any resource:
+            if reply.sticker is not None:
+                text += repr_resource('Sticker', reply.sticker)
+            if reply.gif is not None:
+                text += repr_resource('GIF', reply.gif)
+            if reply.photo is not None:
+                text += repr_resource('Photo', reply.photo)
+
+        await client.send_message('me', text, parse_mode='html')
+
+    elif command == 'replace_unames':
+        try:
+            res = text
+            for m in re.finditer(r'(@\S+)\s+(\S+)', text):
+                username, replacement = m.groups()
+                whole = m.group()
+                users = [
+                    u for u in
+                    await client.get_participants(msg.chat.id, search=username)
+                    if u.username == username[1:]
+                ]
+                res = res.replace(
+                    whole,
+                    f'<a href="tg://user?id={users[0].id}">{replacement}</a>'
+                    if users
+                    else username
+                )
+
+            await msg.delete()
+            await client.send_message(
+                msg.chat.id,
+                res,
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            print(e)
+
+    elif not command and append_dot and text[-1].isalpha():
         await msg.delete()
         await msg.respond(
             text[0].upper() + text[1:] + '.',
@@ -250,8 +301,8 @@ async def on_new_message_all(event: events.NewMessage):
         if not msg.out:
             stickers_map[msg.id] = (sent.chat_id, sent.id)
 
-        os.unlink(temp_name)
-        os.unlink(wav_name)
+        # os.unlink(temp_name)
+        # os.unlink(wav_name)
 
     elif command == 'tagall' and allow_tag_all:
         users = await client.get_participants(msg.chat_id)
@@ -309,7 +360,7 @@ async def handle_exit():
 
 
 async def main():
-    command_re = re.compile(r'(?:\.(\w+))?\s*(?:(.+))?', re.DOTALL)
+    command_re = re.compile(r'\.(\w+)?\s*(.+)?', re.DOTALL)
     client.add_event_handler(
         on_new_message_me,
         event=events.NewMessage(pattern=command_re, outgoing=True)

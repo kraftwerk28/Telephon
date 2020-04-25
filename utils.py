@@ -117,13 +117,15 @@ def jsonclass(path):
     return wrapper
 
 
-def mention(user: tl.types.User):
+def mention(user: tl.types.User, with_link=False):
     if user.username:
         return f'@{user.username}'
     name = user.first_name
     if user.last_name:
         name += ' ' + user.last_name
-    return f'<a href="tg://user?id={user.id}">{name}</a>'
+    if with_link:
+        return f'<a href="tg://user?id={user.id}">{name}</a>'
+    return name
 
 
 def wrap(text: str, font: ImageFont, maxwidth: int) -> Tuple[str, int]:
@@ -144,7 +146,7 @@ def draw_text(image: Image, text: str):
 
 def with_such_jokes(text) -> Image:
     BOX_SIZE = (104, 120)
-    BOX_POS = (256, 138)
+    BOX_POS = (156, 138)
 
     img = Image.open(path.join(RES_DIR, 'with_such_jokes.jpg'))
     d = ImageDraw.Draw(img)
