@@ -175,8 +175,8 @@ async def on_new_message_me(event: events.NewMessage):
     elif command == 'id':
         await msg.delete()
         reply = await msg.get_reply_message()
-        sender: tl.types.User = msg.sender
-        chat: tl.types.Chat = msg.chat
+        sender: tl.types.User = reply.sender
+        chat: tl.types.Chat = reply.chat
 
         text = f'<b>Chat</b>: {chat.title} [<code>{chat.id}</code>]\n'
 
@@ -190,7 +190,6 @@ async def on_new_message_me(event: events.NewMessage):
             ])
 
         if reply is not None:
-
             text += f'<b>User</b>: {utils.mention(sender)} <code>{sender.id}</code>\n'
             # # If message has any resource:
             if reply.sticker is not None:
@@ -253,14 +252,17 @@ async def on_new_message_all(event: events.NewMessage):
     text: str
     command, text = event.pattern_match.groups()
     msg: tl.custom.message.Message = event.message
+    voices = ['nicolai', 'maxim']
 
     if command in ('say', 'сей', 'гл'):
         if msg.out:
             await msg.delete()
-        wav_name = 'temp__.wav'
-        temp_name = 'temp__.ogg'
 
-        data = {'phrase': text}
+        voicestr = '|'.join(voices)
+        voice, phrase = re.search(fr'({voicestr})?\s*(.+)', text).groups()
+        wav_name, temp_name = 'temp__.wav', 'temp__.ogg'
+
+        data = {'phrase': phrase, 'voice': voice or 'maxim'}
         # May be broken due to API changes!
         try:
             resp = requests.post(
@@ -278,15 +280,7 @@ async def on_new_message_all(event: events.NewMessage):
         open(wav_name, 'wb').write(resp.content)
 
         subprocess.run(
-            [
-                'ffmpeg',
-                '-i',
-                wav_name,
-                '-acodec',
-                'libopus',
-                temp_name,
-                '-y'
-            ],
+            f'ffmpeg -i {wav_name} -acodec libopus {temp_name} -y'.split(),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
@@ -301,8 +295,8 @@ async def on_new_message_all(event: events.NewMessage):
         if not msg.out:
             stickers_map[msg.id] = (sent.chat_id, sent.id)
 
-        # os.unlink(temp_name)
-        # os.unlink(wav_name)
+        os.unlink(temp_name)
+        os.unlink(wav_name)
 
     elif command == 'tagall' and allow_tag_all:
         users = await client.get_participants(msg.chat_id)
