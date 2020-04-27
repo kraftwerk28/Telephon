@@ -1,13 +1,13 @@
 import os
 import re
 import sys
-import subprocess
-import urllib.parse as url
-import asyncio
-from typing import List
 import json
-# import signal
-import requests
+import logging
+from typing import List
+
+import asyncio
+from aiohttp import ClientSession, ClientTimeout
+import subprocess
 from telethon import TelegramClient, events, types, tl, Button, client
 from dotenv import load_dotenv
 from wand.image import Image
@@ -31,6 +31,7 @@ VOICE_API_URL: str
 TAG_ALL_LIMIT = 50
 
 client: TelegramClient = None
+http_client: ClientSession = None
 flip_stickers = False
 append_dot = False
 frame_type = 'single'
@@ -175,29 +176,24 @@ async def on_new_message_me(event: events.NewMessage):
     elif command == 'id':
         await msg.delete()
         reply = await msg.get_reply_message()
-        sender: tl.types.User = reply.sender
-        chat: tl.types.Chat = reply.chat
-
-        text = f'<b>Chat</b>: {chat.title} [<code>{chat.id}</code>]\n'
-
-        def repr_resource(type: str, r: tl.types.Document):
-            return '\n'.join([
-                f'<b>{type}</b>:',
-                f'  <i>id</i>: <code>{r.id}</code>',
-                f'  <i>size</i>: <code>{r.size} bytes</code>',
-                f'  <i>mime type</i>: <code>{r.mime_type}</code>',
-                f'  <i>access hash</i>: <code>{r.access_hash}</code>'
-            ])
+        text = ''
+        if msg.is_group:
+            chat = msg.chat
+            text = f'<b>Chat</b>: {chat.title} [<code>{chat.id}</code>]\n'
 
         if reply is not None:
-            text += f'<b>User</b>: {utils.mention(sender)} <code>{sender.id}</code>\n'
+            sender: tl.types.User = reply.sender
+            text += (
+                f'<b>User</b>: {utils.mention(sender)}' +
+                f'[<code>{sender.id}</code>]\n'
+            )
             # # If message has any resource:
             if reply.sticker is not None:
-                text += repr_resource('Sticker', reply.sticker)
+                text += utils.repr_document('Sticker', reply.sticker)
             if reply.gif is not None:
-                text += repr_resource('GIF', reply.gif)
+                text += utils.repr_document('GIF', reply.gif)
             if reply.photo is not None:
-                text += repr_resource('Photo', reply.photo)
+                text += utils.repr_photo('Photo', reply.photo)
 
         await client.send_message('me', text, parse_mode='html')
 
@@ -265,19 +261,18 @@ async def on_new_message_all(event: events.NewMessage):
         data = {'phrase': phrase, 'voice': voice or 'maxim'}
         # May be broken due to API changes!
         try:
-            resp = requests.post(
+            resp = await http_client.post(
                 f'{VOICE_API_URL}/say',
-                data=json.dumps(data),
-                timeout=5
+                json=data,
+                timeout=ClientTimeout(total=5)
             )
-        except requests.exceptions.Timeout as e:
-            print(e)
+        except asyncio.TimeoutError as e:
             await client.send_message(
                 'me',
-                'Timeout making voice API request'
+                'Timeout making voice API request.'
             )
             return
-        open(wav_name, 'wb').write(resp.content)
+        open(wav_name, 'wb').write(await resp.read())
 
         subprocess.run(
             f'ffmpeg -i {wav_name} -acodec libopus {temp_name} -y'.split(),
@@ -335,24 +330,6 @@ async def on_message_delete(event: events.MessageDeleted):
         del stickers_map[_id]
 
 
-def terminate(sigNum, frame):
-    print(f'\nStarting graceful shutdown...')
-    # _loop = client.loop
-    asyncio.ensure_future(
-        client.disconnect(),
-        loop=client.loop
-    ).add_done_callback(
-        lambda _: print('Disconnected.')
-    )
-
-
-async def handle_exit():
-    await client.disconnect()
-
-# signal.signal(signal.SIGTERM, terminate)
-# signal.signal(signal.SIGINT, terminate)
-
-
 async def main():
     command_re = re.compile(r'\.(\w+)?\s*(.+)?', re.DOTALL)
     client.add_event_handler(
@@ -371,8 +348,19 @@ async def main():
         on_message_delete,
         event=events.MessageDeleted()
     )
+
+    global http_client
+    http_client = ClientSession(loop=client.loop)
+
     await client.start()
     await client.run_until_disconnected()
+
+
+async def shutdown():
+    print('\nDisconnecting client.')
+    await http_client.close()
+    await client.disconnect()
+
 
 if __name__ == '__main__':
     load_dotenv()
@@ -380,5 +368,12 @@ if __name__ == '__main__':
     VOICE_API_URL = os.getenv('VOICEAPI_URL')
     client = make_client()
     loop = client.loop
-    loop.run_until_complete(main())
-    loop.close()
+    main_coro = main()
+    exit_coro = shutdown()
+
+    try:
+        loop.run_until_complete(main_coro)
+    except KeyboardInterrupt:
+        loop.run_until_complete(exit_coro)
+    finally:
+        loop.close()

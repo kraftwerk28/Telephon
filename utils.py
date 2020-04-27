@@ -140,8 +140,23 @@ def wrap(text: str, font: ImageFont, maxwidth: int) -> Tuple[str, int]:
     return '\n'.join(res), max(font.getsize(r)[0] for r in res)
 
 
-def draw_text(image: Image, text: str):
-    pass
+def repr_photo(type: str, r: tl.types.Photo):
+    return '\n'.join([
+        f'<b>{type}</b>:',
+        f'  <i>id</i>: <code>{r.id}</code>',
+        f'  <i>date</i>: <code>{str(r.date)}</code>',
+        f'  <i>access hash</i>: <code>{r.access_hash}</code>'
+    ])
+
+
+def repr_document(type: str, r: tl.types.Document):
+    return '\n'.join([
+        f'<b>{type}</b>:',
+        f'  <i>id</i>: <code>{r.id}</code>',
+        f'  <i>size</i>: <code>{r.size} bytes</code>',
+        f'  <i>mime type</i>: <code>{r.mime_type}</code>',
+        f'  <i>access hash</i>: <code>{r.access_hash}</code>'
+    ])
 
 
 def with_such_jokes(text) -> Image:

@@ -1,4 +1,5 @@
 asyncio
+aiohttp
 python-dotenv
 telethon
 wand
