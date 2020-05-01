@@ -28,6 +28,7 @@ HELP_TEXT = '''
 .[st|ст] <text> - staroslav text
 '''
 VOICE_API_URL: str
+JOKE_API_URL: str
 TAG_ALL_LIMIT = 50
 
 client: TelegramClient = None
@@ -256,10 +257,9 @@ async def on_new_message_all(event: events.NewMessage):
 
         voicestr = '|'.join(voices)
         voice, phrase = re.search(fr'({voicestr})?\s*(.+)', text).groups()
-        wav_name, temp_name = 'temp__.wav', 'temp__.ogg'
+        input_name, temp_name = 'temp__.wav', 'temp__.ogg'
 
-        data = {'phrase': phrase, 'voice': voice or 'maxim'}
-        # May be broken due to API changes!
+        data = {'phrase': phrase, 'voice': voice or 'nicolai'}
         try:
             resp = await http_client.post(
                 f'{VOICE_API_URL}/say',
@@ -272,10 +272,10 @@ async def on_new_message_all(event: events.NewMessage):
                 'Timeout making voice API request.'
             )
             return
-        open(wav_name, 'wb').write(await resp.read())
+        open(input_name, 'wb').write(await resp.read())
 
         subprocess.run(
-            f'ffmpeg -i {wav_name} -acodec libopus {temp_name} -y'.split(),
+            f'ffmpeg -i {input_name} -acodec libopus {temp_name} -y'.split(),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
@@ -291,7 +291,7 @@ async def on_new_message_all(event: events.NewMessage):
             stickers_map[msg.id] = (sent.chat_id, sent.id)
 
         os.unlink(temp_name)
-        os.unlink(wav_name)
+        os.unlink(input_name)
 
     elif command == 'tagall' and allow_tag_all:
         users = await client.get_participants(msg.chat_id)
@@ -305,6 +305,42 @@ async def on_new_message_all(event: events.NewMessage):
         )
         sent = await msg.respond(msg_str, parse_mode='HTML')
         stickers_map[msg.id] = (sent.chat_id, sent.id)
+
+    elif command in ('joke', 'jk', 'жарт'):
+        if msg.out:
+            await msg.delete()
+        input_name = 'temp__.ogg'
+        output_name = 'temp2__.ogg'
+        try:
+            resp = await http_client.get(
+                f'{JOKE_API_URL}/audioJoke',
+                timeout=ClientTimeout(total=5)
+            )
+        except asyncio.TimeoutError as e:
+            await client.send_message(
+                'me',
+                'Timeout making voice API request.'
+            )
+            return
+        with open(input_name, 'wb+') as f:
+            f.write(await resp.read())
+        subprocess.run(
+            f'ffmpeg -i {input_name} -acodec libopus {output_name} -y'.split(),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+
+        sent = await client.send_file(
+            msg.chat_id,
+            output_name,
+            voice_note=True,
+            reply_to=msg.reply_to_msg_id if msg.out else msg.id
+        )
+
+        if not msg.out:
+            stickers_map[msg.id] = (sent.chat_id, sent.id)
+        os.unlink(input_name)
+        os.unlink(output_name)
 
     match = re.match(
         r'^с такими приколами тебе сюда:\s*(.+)',
@@ -365,7 +401,8 @@ async def shutdown():
 if __name__ == '__main__':
     load_dotenv()
 
-    VOICE_API_URL = os.getenv('VOICEAPI_URL')
+    VOICE_API_URL = os.getenv('VOICE_API_URL')
+    JOKE_API_URL = os.getenv('JOKE_API_URL')
     client = make_client()
     loop = client.loop
     main_coro = main()
