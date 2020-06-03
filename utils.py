@@ -185,6 +185,16 @@ def with_such_jokes(text) -> Image:
     return img
 
 
+COMMAND_RE = re.compile(r'\s*\.(\w+)\s*(.+)', re.DOTALL)
+def match_cmd(text: str):
+    mtch = re.search(COMMAND_RE, text)
+    print(mtch.groups())
+    if mtch:
+        command, text = mtch.groups()
+        return (command, text)
+    return (None, text)
+
+
 # tests
 if __name__ == '__main__':
     print(bordered('Hello, world!', fr_type='single'))

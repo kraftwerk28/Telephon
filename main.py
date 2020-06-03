@@ -39,7 +39,6 @@ frame_type = 'single'
 stickers_map = {}
 allow_tag_all = True
 
-
 async def flip_sticker(msg: tl.custom.message.Message):
     global stickers_map
     temp_path = 'tl.webp'
@@ -60,10 +59,8 @@ async def on_new_message_me(event: events.NewMessage):
     global frame_type
     global append_dot
 
-    command: str
-    text: str
-    command, text = event.pattern_match.groups()
     msg: tl.custom.message.Message = event.message
+    command, text = event.pattern_match.groups()
 
     if command == 'stop_ai':
         await msg.delete()
@@ -185,10 +182,11 @@ async def on_new_message_me(event: events.NewMessage):
         if reply is not None:
             sender: tl.types.User = reply.sender
             text += (
-                f'<b>User</b>: {utils.mention(sender)}' +
+                f'<b>User</b>: {utils.mention(sender)} ' +
                 f'[<code>{sender.id}</code>]\n'
             )
-            # # If message has any resource:
+            text += f'<b>Message</b>: [<code>{reply.id}</code>]\n'
+            # If message has any resource:
             if reply.sticker is not None:
                 text += utils.repr_document('Sticker', reply.sticker)
             if reply.gif is not None:
@@ -245,10 +243,8 @@ async def on_new_message_other(event: events.NewMessage):
 
 
 async def on_new_message_all(event: events.NewMessage):
-    command: str
-    text: str
-    command, text = event.pattern_match.groups()
     msg: tl.custom.message.Message = event.message
+    command, text = event.pattern_match.groups()
     voices = ['nicolai', 'maxim']
 
     if command in ('say', 'сей', 'гл'):
@@ -256,7 +252,12 @@ async def on_new_message_all(event: events.NewMessage):
             await msg.delete()
 
         voicestr = '|'.join(voices)
-        voice, phrase = re.search(fr'({voicestr})?\s*(.+)', text).groups()
+        voice, phrase = re.search(
+            fr'({voicestr})?\s*(.+)',
+            text,
+            re.DOTALL
+        ).groups()
+
         input_name, temp_name = 'temp__.wav', 'temp__.ogg'
 
         data = {'phrase': phrase, 'voice': voice or 'nicolai'}
@@ -306,46 +307,10 @@ async def on_new_message_all(event: events.NewMessage):
         sent = await msg.respond(msg_str, parse_mode='HTML')
         stickers_map[msg.id] = (sent.chat_id, sent.id)
 
-    elif command in ('joke', 'jk', 'жарт'):
-        if msg.out:
-            await msg.delete()
-        input_name = 'temp__.ogg'
-        output_name = 'temp2__.ogg'
-        try:
-            resp = await http_client.get(
-                f'{JOKE_API_URL}/audioJoke',
-                timeout=ClientTimeout(total=5)
-            )
-        except asyncio.TimeoutError as e:
-            await client.send_message(
-                'me',
-                'Timeout making voice API request.'
-            )
-            return
-        with open(input_name, 'wb+') as f:
-            f.write(await resp.read())
-        subprocess.run(
-            f'ffmpeg -i {input_name} -acodec libopus {output_name} -y'.split(),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-
-        sent = await client.send_file(
-            msg.chat_id,
-            output_name,
-            voice_note=True,
-            reply_to=msg.reply_to_msg_id if msg.out else msg.id
-        )
-
-        if not msg.out:
-            stickers_map[msg.id] = (sent.chat_id, sent.id)
-        os.unlink(input_name)
-        os.unlink(output_name)
-
-    match = re.match(
-        r'^с такими приколами тебе сюда:\s*(.+)',
+    match = re.search(
+        r'^с такими приколами тебе сюда\s*:\s*(.+)',
         text,
-        flags=re.IGNORECASE
+        flags=re.IGNORECASE | re.DOTALL
     )
     if match:
         tuda = match[1]
@@ -367,7 +332,7 @@ async def on_message_delete(event: events.MessageDeleted):
 
 
 async def main():
-    command_re = re.compile(r'\.(\w+)?\s*(.+)?', re.DOTALL)
+    command_re = re.compile(r'\s*(?:\.(\w+))?\s*(.+)?', re.DOTALL)
     client.add_event_handler(
         on_new_message_me,
         event=events.NewMessage(pattern=command_re, outgoing=True)
@@ -378,7 +343,7 @@ async def main():
     )
     client.add_event_handler(
         on_new_message_other,
-        event=events.NewMessage(incoming=True)
+        event=events.NewMessage(pattern=command_re, incoming=True)
     )
     client.add_event_handler(
         on_message_delete,
@@ -389,6 +354,7 @@ async def main():
     http_client = ClientSession(loop=client.loop)
 
     await client.start()
+    print('Client started.')
     await client.run_until_disconnected()
 
 
