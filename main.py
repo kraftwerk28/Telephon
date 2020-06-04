@@ -1,19 +1,23 @@
+from init_client import make_client
+import utils
 import os
 import re
 import sys
 import json
-import logging
+import logging as log
 from typing import List
 
-import asyncio
-from aiohttp import ClientSession, ClientTimeout
-import subprocess
-from telethon import TelegramClient, events, types, tl, Button, client
-from dotenv import load_dotenv
-from wand.image import Image
+try:
+    import asyncio
+    from aiohttp import ClientSession, ClientTimeout
+    import subprocess
+    from telethon import TelegramClient, events, types, tl, Button, client
+    from dotenv import load_dotenv
+    from wand.image import Image
+except Exception as e:
+    log.error(e)
+    sys.exit(1)
 
-import utils
-from init_client import make_client
 
 PICUTRES_PATH = os.path.join(os.path.expanduser('~'), 'Pictures/')
 HELP_TEXT = '''
@@ -29,7 +33,7 @@ HELP_TEXT = '''
 '''
 VOICE_API_URL: str
 JOKE_API_URL: str
-TAG_ALL_LIMIT = 50
+TAG_ALL_LIMIT = 100
 
 client: TelegramClient = None
 http_client: ClientSession = None
@@ -38,6 +42,7 @@ append_dot = False
 frame_type = 'single'
 stickers_map = {}
 allow_tag_all = True
+
 
 async def flip_sticker(msg: tl.custom.message.Message):
     global stickers_map
@@ -71,10 +76,7 @@ async def on_new_message_me(event: events.NewMessage):
         await handle_exit()
 
     elif command == 'get_msg':
-        (entity_like, cnt) = re.match(
-            r'(\w+)(?:\s+)?(?:(\d+))?',
-            text
-        ).groups()
+        entity_like, cnt = re.match(r'(\w+)(?:\s+)?(?:(\d+))?', text).groups()
         cnt = int(cnt) if cnt else 5
         try:
             entity = await client.get_entity(entity_like)
@@ -162,15 +164,6 @@ async def on_new_message_me(event: events.NewMessage):
             )
         )
 
-    if command == 'typing':
-        try:
-            await client.action(
-                msg.chat.id,
-                'typing',
-            )
-        except Exception as e:
-            print(e)
-
     elif command == 'id':
         await msg.delete()
         reply = await msg.get_reply_message()
@@ -221,7 +214,7 @@ async def on_new_message_me(event: events.NewMessage):
                 parse_mode='HTML'
             )
         except Exception as e:
-            print(e)
+            log.error('Replace unames error: %s', e)
 
     elif not command and append_dot and text[-1].isalpha():
         await msg.delete()
@@ -354,18 +347,23 @@ async def main():
     http_client = ClientSession(loop=client.loop)
 
     await client.start()
-    print('Client started.')
+    log.info('Client started.')
     await client.run_until_disconnected()
 
 
 async def shutdown():
-    print('\nDisconnecting client.')
+    log.info('Disconnecting client')
     await http_client.close()
     await client.disconnect()
 
 
 if __name__ == '__main__':
     load_dotenv()
+    log.basicConfig(
+        format='[%(asctime)s] %(message)s',
+        datefmt='%d.%m.%Y %H:%M:%S',
+        level=log.INFO
+    )
 
     VOICE_API_URL = os.getenv('VOICE_API_URL')
     JOKE_API_URL = os.getenv('JOKE_API_URL')
