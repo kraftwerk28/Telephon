@@ -5,6 +5,14 @@ import json
 from PIL import ImageFont, Image, ImageDraw
 from typing import Tuple
 
+COMMAND_PREFIX = '.'
+
+
+class MsgDir:
+    OUT = 0
+    IN = 1
+    BOTH = 2
+
 
 RES_DIR = 'resources/'
 MAX_LEN = 20
@@ -186,6 +194,8 @@ def with_such_jokes(text) -> Image:
 
 
 COMMAND_RE = re.compile(r'\s*\.(\w+)\s*(.+)', re.DOTALL)
+
+
 def match_cmd(text: str):
     mtch = re.search(COMMAND_RE, text)
     print(mtch.groups())

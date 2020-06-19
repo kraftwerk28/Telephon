@@ -106,3 +106,4 @@ venv.bak/
 *.session
 sessions/
 .idea/
+deploy.sh
