@@ -29,7 +29,7 @@ class TgAI(object):
         client = TelegramClient(session_path, api_id, api_hash)
 
         self.client: TelegramClient = client
-        self.http: ClientSession = ClientSession(loop=client.loop)
+        self.http_client: ClientSession = ClientSession(loop=client.loop)
         self.state = State.restore()
 
         client.add_event_handler(self._on_message, events.NewMessage)
@@ -109,7 +109,12 @@ class TgAI(object):
 
     async def _on_message(self, event):
         '''Event handler for telethon internal usage'''
-        context = TgAIContext(self.client, event, self.state)
+        context = TgAIContext(
+            self.client,
+            event,
+            state=self.state,
+            http_client=self.http_client
+        )
 
         for test, preprocess, func in self._callbacks:
             passed = await test(context)
@@ -145,5 +150,6 @@ class TgAI(object):
         self.client.remove_event_handler(self._on_message)
         self.client.remove_event_handler(self._on_delete)
         log.info('Disconnecting client')
-        await self.http.close()
+        if self.http_client:
+            await self.http_client.close()
         await self.client.disconnect()

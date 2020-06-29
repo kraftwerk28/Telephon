@@ -107,3 +107,4 @@ venv.bak/
 sessions/
 .idea/
 deploy.sh
+*_old.py

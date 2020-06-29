@@ -28,7 +28,7 @@ class TgAIContext(object):
         self,
         client: TelegramClient,
         event: events.common.EventBuilder,
-        state: State = None,
+        **kwargs,
     ):
         self.client: TelegramClient = client
         self.event: events.common.EventCommon = event
@@ -41,7 +41,7 @@ class TgAIContext(object):
         self._deferred: Set[Deferrer] = set()
         self.args: List[str] = []
         self.named_args: Dict[str, str] = {}
-        self.state: State = state
+        self.__dict__.update(kwargs)
 
     def next_word(self) -> Optional[str]:
         if self._wordlist:
@@ -68,6 +68,8 @@ class TgAIContext(object):
             if w:
                 words.append(w)
             else:
+                if is_inf:
+                    break
                 words.append(None)
         return words
 

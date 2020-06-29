@@ -43,6 +43,15 @@ async def tagall(ctx: TgAIContext):
         ctx.state.autorm[ctx.msg.id] = (sent.chat_id, sent.id)
 
 
+@app.on_command(['say', 'гл'], argcount=-1)
+async def voice_engine(ctx: TgAIContext):
+    if ctx.msg.out:
+        await ctx.msg.delete()
+    voice, *rest = ctx.args
+    phrase = ' '.join(rest)
+    await ctx.msg.respond(f'{voice}: {phrase}')
+
+
 @app.on_delete()
 async def on_delete(ctx: TgAIContext):
     autorm = ctx.state.autorm
@@ -54,6 +63,40 @@ async def on_delete(ctx: TgAIContext):
         except:
             pass
         del autorm[_id]
+
+
+@app.on_command('id', direction=MsgDir.OUT)
+async def id(ctx: TgAIContext):
+    msg, client = ctx.msg, ctx.client
+
+    await msg.delete()
+    reply = await msg.get_reply_message()
+    text = ''
+    chat = msg.chat
+    if msg.is_group:
+        text = f'<b>Chat</b>: {chat.title} [<code>{chat.id}</code>]\n'
+    elif msg.is_private:
+        text = (
+            f'<b>Private chat</b>: {mention(chat)} ' +
+            f'[<code>{chat.id}</code>]\n'
+        )
+
+    if reply is not None:
+        sender: tl.types.User = reply.sender
+        text += (
+            f'<b>User</b>: {utils.mention(sender)} ' +
+            f'[<code>{sender.id}</code>]\n'
+        )
+        text += f'<b>Message</b>: [<code>{reply.id}</code>]\n'
+        # If message has any resource:
+        if reply.sticker is not None:
+            text += utils.repr_document('Sticker', reply.sticker)
+        if reply.gif is not None:
+            text += utils.repr_document('GIF', reply.gif)
+        if reply.photo is not None:
+            text += utils.repr_photo('Photo', reply.photo)
+
+    await client.send_message('me', text, parse_mode='html')
 
 
 if __name__ == '__main__':
