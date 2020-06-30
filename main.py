@@ -7,8 +7,8 @@ import sys
 import subprocess
 from telethon import tl
 
-from tgai28.core import *
-from tgai28.core.utils import *
+from core import *
+from core.utils import *
 import utils
 
 load_dotenv()
@@ -62,11 +62,13 @@ async def on_delete(ctx: TgAIContext):
         del autorm[_id]
 
 
-@app.on_command('id', direction=MsgDir.OUT, argcount=1)
+@app.on_command('id', argcount=1)
 async def id(ctx: TgAIContext):
     msg, client = ctx.msg, ctx.client
 
-    await msg.delete()
+    if msg.out:
+        await msg.delete()
+
     reply = await msg.get_reply_message()
     text = ''
     chat = msg.chat
@@ -94,11 +96,12 @@ async def id(ctx: TgAIContext):
         if reply.photo is not None:
             text += utils.repr_photo('Photo', reply.photo)
 
-    await client.send_message(
-        msg.chat.id if ctx.args[0] == 'here' else 'me',
-        text,
-        parse_mode='html'
-    )
+    if not msg.out:
+        await msg.reply(text, parse_mode='html')
+    elif ctx.args[0] == 'here':
+        await msg.respond(text, parse_mode='html')
+    else:
+        await client.send_message('me', text, parse_mode='html')
 
 
 async def flip_sticker(msg: tl.custom.message.Message):
@@ -176,4 +179,4 @@ async def say(ctx: TgAIContext):
 
 
 if __name__ == '__main__':
-    app.start()
+    sys.exit(app.start())

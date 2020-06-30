@@ -145,6 +145,7 @@ class TgAI(object):
         finally:
             loop.close()
             log.info('Client loop closed')
+        return 0
 
     async def shutdown(self):
         self.client.remove_event_handler(self._on_message)
