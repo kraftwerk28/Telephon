@@ -6,6 +6,7 @@ import os
 import sys
 import subprocess
 from telethon import tl
+from wand.image import Image
 
 from core import *
 from core.utils import *
@@ -29,7 +30,6 @@ app = TgAI(SESSION_PATH, API_ID, API_HASH)
 
 @app.on_command('help', arglist=['object', 'sample'], direction=MsgDir.OUT)
 async def help(ctx: TgAIContext):
-    print(ctx.state)
     await ctx.msg.reply(
         'Help: {}, {}'.format(
             ctx.named_args['object'],
@@ -53,13 +53,13 @@ async def tagall(ctx: TgAIContext):
 async def on_delete(ctx: TgAIContext):
     autorm = ctx.state.autorm
     stickerids = [i for i in ctx.event.deleted_ids if i in autorm]
-    for _id in stickerids:
-        chat_id, msg_id = autorm[_id]
+    for id in stickerids:
+        chat_id, msg_id = autorm[id]
         try:
             await ctx.client.delete_messages(chat_id, msg_id)
         except:
             pass
-        del autorm[_id]
+        autorm.pop(id)
 
 
 @app.on_command('id', argcount=1)
@@ -97,15 +97,15 @@ async def id(ctx: TgAIContext):
             text += utils.repr_photo('Photo', reply.photo)
 
     if not msg.out:
-        await msg.reply(text, parse_mode='html')
+        sent = await msg.reply(text, parse_mode='html')
+        ctx.state.autorm[ctx.msg.id] = (sent.chat_id, sent.id)
     elif ctx.args[0] == 'here':
         await msg.respond(text, parse_mode='html')
     else:
         await client.send_message('me', text, parse_mode='html')
 
 
-async def flip_sticker(msg: tl.custom.message.Message):
-    global stickers_map
+async def flip_sticker(ctx: TgAIContext, msg: tl.custom.message.Message):
     temp_path = 'tl.webp'
     await msg.download_media(file=temp_path)
 
@@ -114,17 +114,18 @@ async def flip_sticker(msg: tl.custom.message.Message):
     img.save(filename=temp_path)
 
     sent: tl.custom.Message = await msg.reply(file=temp_path)
-    stickers_map[msg.id] = (sent.chat_id, sent.id)
+    ctx.state.autorm[msg.id] = (sent.chat_id, sent.id)
     os.remove(temp_path)
 
 
 @app.on_command('flip', direction=MsgDir.OUT)
 async def flip(ctx: TgAIContext):
+    msg = ctx.msg
     target: tl.custom.Message = await msg.get_reply_message()
     if (target and target.sticker):
         target.sticker
         await msg.delete()
-        await flip_sticker(target)
+        await flip_sticker(ctx, target)
 
 
 @app.on_command(['say', 'гл'], direction=MsgDir.OUT, argcount=-1)
@@ -172,10 +173,26 @@ async def say(ctx: TgAIContext):
     )
 
     if not msg.out:
-        stickers_map[msg.id] = (sent.chat_id, sent.id)
+        ctx.state.autorm[ctx.msg.id] = (sent.chat_id, sent.id)
 
     os.unlink(temp_name)
     os.unlink(input_name)
+
+
+@app.on_command(['фр', 'fr'], direction=MsgDir.OUT, argcount=-1)
+async def framed(ctx: TgAIContext):
+    msg, client, state = ctx.msg, ctx.client, ctx.state
+    if msg.entities:
+        return
+    framed = utils.bordered(' '.join(ctx.args), fr_type='double')
+    await msg.delete()
+    await client.send_message(
+        msg.chat_id,
+        framed,
+        parse_mode='HTML',
+        link_preview='false',
+        reply_to=msg.reply_to_msg_id
+    )
 
 
 if __name__ == '__main__':

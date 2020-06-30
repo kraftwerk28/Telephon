@@ -126,7 +126,7 @@ class TgAI(object):
             defer_cb(context)
 
     async def _on_delete(self, event):
-        context = TgAIContext(self.client, event, self.state)
+        context = TgAIContext(self.client, event, state=self.state)
         for test, func in self._del_callbacks:
             if await test(context):
                 await func(context)
