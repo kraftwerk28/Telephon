@@ -12,21 +12,42 @@ import logging as log
 from .context import TgAIContext
 from .state import State
 from .utils import *
-
-TgAICallback = Tuple[
-    Callable[[events.common.EventBuilder], Awaitable[bool]],
-    Callable[[TgAIContext], None],
-    Callable[[TgAIContext], Any],
-]
+from .command import CommandExecutor, Command
 
 
-class TgAI(object):
-    def __init__(self, session_path: str, api_id: str, api_hash: str):
+'''
+### Must define a reaction - they will be returned from customer callbacks
+e.g.:
+@on_command('cmd')
+async def on_cmd(ctx: Context):
+    ...
+    return reactions.Base('some text', cleanup_command=True,)
+    OR
+    return reactions.Photo('file.png')
+
+### command args:
+1, 2, 3 - meaningful
+None - undefined (probably infinite)
+0 - just 0, rarely used
+
+### Every middleware can:
+- modify Context (which has reference to instance's state and so on)
+- return reaction, which does a lot of work for us (for example, reply to message, clean command message etc)
+'''
+
+
+class TgAI:
+    def __init__(self, init_config: InitConfig):
         self._callbacks: List[TgAICallback] = []
         self._del_callbacks: List[TgAICallback] = []
+        self.commands = []
         # TODO: implement
         self.config: Any = None
-        client = TelegramClient(session_path, api_id, api_hash)
+        client = TelegramClient(
+            init_config.session_path,
+            init_config.api_id,
+            init_config.api_hash
+        )
 
         self.client: TelegramClient = client
         self.http_client: ClientSession = ClientSession(loop=client.loop)
@@ -44,45 +65,13 @@ class TgAI(object):
     def on_command(
         self,
         command: Union[str, List[str]],
-        argcount: int = 0,
-        arglist: List[str] = [],
+        args: int = 0,
+        named_args: List[str] = [],
         direction: MsgDir = MsgDir.BOTH
     ):
-        async def test(context: TgAIContext) -> bool:
-            msg = context.event.message
-
-            if not context.has_words():
-                return False
-
-            if (
-                direction == MsgDir.OUT and not msg.out or
-                direction == MsgDir.IN and msg.out
-            ):  # Test message direction
-                return False
-
-            maybe_command = context.first_word()[COMMAND_PREFIX.__len__():]
-            if (
-                type(command) == str and maybe_command != command or
-                maybe_command not in command
-            ):  # Test command matching
-                return False
-            return True
-
-        def preprocess(context):
-            context.next_word()
-            if arglist:
-                al = context.n_words(arglist.__len__())
-            else:
-                al = context.n_words(argcount)
-
-            if arglist:
-                context.named_args = {k: al[i] for i, k in enumerate(arglist)}
-            else:
-                context.args = al
-
         def wrapper(func):
-            self._callbacks.append((test, preprocess, func))
-
+            cmdcfg = Command(command, args, named_args, direction, func)
+            self.commands.append(cmdcfg)
         return wrapper
 
     def on_text(
@@ -92,44 +81,27 @@ class TgAI(object):
     ):
         pass
 
+    def on_event(self):
+        pass
+
     def on_media(self, direction=MsgDir.BOTH, media_types: List[Any] = []):
         pass
 
     def on_delete(self):
         '''When message is deleted'''
-
-        async def test(context: TgAIContext) -> bool:
-            # TODO: implement
-            return True
-
         def wrapper(func):
-            self._del_callbacks.append((test, func))
-
+            pass
         return wrapper
+
+    async def _run_commands(self, event):
+        await CommandExecutor(self, event).execute()
 
     async def _on_message(self, event):
         '''Event handler for telethon internal usage'''
-        context = TgAIContext(
-            self.client,
-            event,
-            state=self.state,
-            http_client=self.http_client
-        )
-
-        for test, preprocess, func in self._callbacks:
-            passed = await test(context)
-            if passed:
-                preprocess(context)
-                await func(context)
-
-        for defer_cb in context._deferred:
-            defer_cb(context)
+        await self._run_commands(event)
 
     async def _on_delete(self, event):
-        context = TgAIContext(self.client, event, state=self.state)
-        for test, func in self._del_callbacks:
-            if await test(context):
-                await func(context)
+        pass
 
     async def _run_client(self):
         await self.client.start()

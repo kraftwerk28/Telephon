@@ -17,11 +17,11 @@ log.basicConfig(
 API_ID = os.getenv('API_ID')
 API_HASH = os.getenv('API_HASH')
 SESSION_PATH = os.path.abspath('./sessions/tgai28')
+config = InitConfig(SESSION_PATH, API_ID, API_HASH)
+app = TgAI(config)
 
-app = TgAI(SESSION_PATH, API_ID, API_HASH)
 
-
-@app.on_command('help', arglist=['object', 'sample'], direction=MsgDir.OUT)
+@app.on_command('help', named_args=['object', 'sample'], direction=MsgDir.OUT)
 async def help(ctx: TgAIContext):
     print(ctx.state)
     await ctx.msg.reply(
@@ -43,7 +43,7 @@ async def tagall(ctx: TgAIContext):
         ctx.state.autorm[ctx.msg.id] = (sent.chat_id, sent.id)
 
 
-@app.on_command(['say', 'гл'], argcount=-1)
+@app.on_command(['say', 'гл'])
 async def voice_engine(ctx: TgAIContext):
     if ctx.msg.out:
         await ctx.msg.delete()

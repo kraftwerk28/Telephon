@@ -20,15 +20,17 @@ log.basicConfig(
     level=log.INFO
 )
 
-API_ID = os.getenv('API_ID')
-API_HASH = os.getenv('API_HASH')
+config = InitConfig(
+    os.path.abspath('./sessions/tgai28'),
+    os.getenv('API_ID'),
+    os.getenv('API_HASH')
+)
+
 VOICE_API_URL = os.getenv('VOICE_API_URL')
-SESSION_PATH = os.path.abspath('./sessions/tgai28')
-
-app = TgAI(SESSION_PATH, API_ID, API_HASH)
+app = TgAI(config)
 
 
-@app.on_command('help', arglist=['object', 'sample'], direction=MsgDir.OUT)
+@app.on_command('help', named_args=['object', 'sample'], direction=MsgDir.OUT)
 async def help(ctx: TgAIContext):
     await ctx.msg.reply(
         'Help: {}, {}'.format(
@@ -136,12 +138,13 @@ async def say(ctx: TgAIContext):
         await msg.delete()
 
     voice, *words = ctx.args
+    VOICE_MATCH = utils.VOICE_MATCH
     if voice in VOICE_MATCH:
         phrase = ' '.join(words)
         voice = VOICE_MATCH[voice]
     else:
         phrase = ' '.join([voice, *words])
-        voice = 'nicolai'
+        voice = 'maxim'
     input_name, temp_name = 'temp__.wav', 'temp__.ogg'
 
     data = {'phrase': phrase, 'voice': voice}
