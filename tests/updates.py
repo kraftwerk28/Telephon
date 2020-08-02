@@ -5,7 +5,7 @@ import sys
 import json
 from telethon import TelegramClient, events
 from dotenv import load_dotenv
-from init_client import make_client
+# from init_client import make_client
 from pprint import pprint
 import asyncio
 from aiohttp import (ClientSession, ClientTimeout)

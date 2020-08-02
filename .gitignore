@@ -104,7 +104,8 @@ venv.bak/
 .mypy_cache/
 
 *.session
-sessions/
 .idea/
 deploy.sh
 *_old.py
+.sessions/
+.scripts/

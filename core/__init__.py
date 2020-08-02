@@ -1,3 +1,3 @@
-from .ai import TgAI
-from .context import TgAIContext
+from .telephon import Telephon
+from .context import Context
 from .state import State

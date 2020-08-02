@@ -1,12 +1,6 @@
 from typing import Callable, Awaitable, Tuple, Any
 from telethon import events
-from .context import TgAIContext
+from .context import Context
 
 
-TgAICallback = Tuple[
-    Callable[[events.common.EventBuilder], Awaitable[bool]],
-    Callable[[TgAIContext], None],
-    Callable[[TgAIContext], Any],
-]
-
-Middleware = Callable[['TgAIContext'], Awaitable[None]]
+Middleware = Callable[['Context'], Awaitable[None]]

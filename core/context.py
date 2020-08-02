@@ -12,7 +12,7 @@ import logging as log
 from .state import State
 
 
-class TgAIContext:
+class Context:
     '''
     Token list (split by whitespace)
     acquire token from context (cut first word from token list)
@@ -24,10 +24,10 @@ class TgAIContext:
     '''
 
     def __init__(
-        self, tgai: 'TgAI', event: events.common.EventCommon,
+        self, telephon: 'Telephon', event: events.common.EventCommon,
         args: List[str] = None, named_args: Dict[str, str] = None,
     ):
-        self.client: TelegramClient = tgai.client
+        self.client: TelegramClient = telephon.client
         self.event: events.common.EventCommon = event
         self.args = args
         self.named_args = named_args

@@ -1,83 +1,87 @@
 import re
+import sys
 from typing import Callable, List, Union
 from .types import *
-from .utils import MsgDir
-
 
 COMMAND_PREFIX = r'\.'
 SUBCMD_LEFT_BRACKET = r'\['
 SUBCMD_RIGHT_BRACKET = r'\]'
 CMD_SPLIT_REGEX = re.compile(
-    '|'.join([
-        fr'({COMMAND_PREFIX}\w+)',
-        r'\s+',
-        fr'({SUBCMD_LEFT_BRACKET})',
-        fr'({SUBCMD_RIGHT_BRACKET})',
-    ])
-)
+    '|'.join([r'\s+',
+              fr'({SUBCMD_LEFT_BRACKET})',
+              fr'({SUBCMD_RIGHT_BRACKET})']))
+
+
+class CommandException(Exception):
+    pass
 
 
 class Command:
-    def __init__(
-        self,
-        command: Union[str, List[str]],
-        args: int = None,
-        named_args: List[str] = [],
-        direction=MsgDir.BOTH,
-        func=None,
-    ):
-        self.command = command
-        self.args = args
+    def __init__(self,
+                 command: Union[str, List[str]],
+                 args: int = None,
+                 named_args: List[str] = [],
+                 allow_incoming=False,
+                 only_incoming=False,
+                 callback=None):
+        self.command: Union[str, List[str]] = command
+        self.args: int = args
         self.named_args: List[str] = named_args
-        self.func = func
+        self.allow_incoming: bool = allow_incoming
+        self.only_incoming: bool = only_incoming
+        self.callback = callback
 
-    def equals(self, command: str) -> bool:
+    def __eq__(self, command: str) -> bool:
         commandstr = re.sub(fr'^{COMMAND_PREFIX}', '', command)
         if type(self.command) == str:
             return commandstr == self.command
         elif type(self.command) in (tuple, list):
             return commandstr in self.command
+        else:
+            raise CommandException('Inconsistent type for command definition'
+                                   f'{type(self.command)}.')
 
     def __repr__(self):
-        return (
-            f'Command: {self.command}; '
-            f'args: {self.args}; '
-            f'named_args: {self.named_args}'
-        )
+        command_repr = (self.command
+                        if type(self.command == str)
+                        else ', '.join(self.command))
+        return (f'Command: {command_repr}; '
+                f'args number: {self.args}; '
+                f'named_args: {self.named_args}')
+
+    def __call__(self, context: 'Context'):
+        return self.callback(context)
 
 
 class CommandExecutor:
-    def __init__(self, tgai: 'TgAI', event):
-        self._tgai = tgai
+    def __init__(self, telephon: 'Telephon', event):
+        self._telephon = telephon
         self._event = event
 
     async def execute(self):
         msg = self._event.message
         text = msg.text
         tokens = [word for word in re.split(CMD_SPLIT_REGEX, text) if word]
-        print('Tokens:', tokens)
-        commands = self._tgai.commands
+        commands = self._telephon.commands
         while tokens:
             token = tokens.pop(0)
-            if re.match(fr'^{COMMAND_PREFIX}\w+$', token) is not None:
-                print('Token is command')
-                matched = self._match_commands(token)
-                print(matched)
+            if re.match(fr'^{COMMAND_PREFIX}\w+', token) is not None:
+                matched = [
+                    command for command in self._telephon.commands
+                    if command == token
+                ]
                 for cmd in matched:
-                    await self._execute_one(cmd, tokens)
+                    await self._execute_command(cmd, tokens)
 
             elif token == SUBCMD_LEFT_BRACKET:
-                # TODO: implement
+                # TODO: implement nested commands
                 pass
 
             elif token == SUBCMD_RIGHT_BRACKET:
-                # TODO: implement
+                # TODO: implement nested commands
                 pass
 
-    def _match_commands(self, command_str: str) -> List[Command]:
-        return [cmd for cmd in self._tgai.commands if cmd.equals(command_str)]
-
-    async def _execute_one(self, command: Command, tokens: List[str]):
+    async def _execute_command(self, command: Command, tokens: List[str]):
         args, named_args = None, None
         if command.named_args is not None:
             arglist = []
@@ -95,5 +99,7 @@ class CommandExecutor:
                     args.append(tokens.pop(0))
 
         print(f'args: {args}; named args: {named_args}')
-        # Create context and run command with it:
-        ctx = TgAIContext(self._tgai, self._event)
+        ctx = Context(self._telephon, self._event)
+        await command(ctx)
+        # if reaction is not None:
+        #     await reaction(ctx)

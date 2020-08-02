@@ -21,7 +21,7 @@ log.basicConfig(
 )
 
 config = InitConfig(
-    os.path.abspath('./sessions/tgai28'),
+    os.path.abspath('./.sessions/tgai28'),
     os.getenv('API_ID'),
     os.getenv('API_HASH')
 )

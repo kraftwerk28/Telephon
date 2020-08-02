@@ -3,8 +3,8 @@ import sys
 import logging as log
 from dotenv import load_dotenv
 
-from tgai28.core import *
-from tgai28.core.utils import *
+from Telephon.core import *
+from Telephon.core.utils import *
 
 load_dotenv()
 
@@ -16,13 +16,13 @@ log.basicConfig(
 
 API_ID = os.getenv('API_ID')
 API_HASH = os.getenv('API_HASH')
-SESSION_PATH = os.path.abspath('./sessions/tgai28')
+SESSION_PATH = os.path.abspath('./.sessions/tgai28')
 config = InitConfig(SESSION_PATH, API_ID, API_HASH)
-app = TgAI(config)
+app = Telephon(config)
 
 
-@app.on_command('help', named_args=['object', 'sample'], direction=MsgDir.OUT)
-async def help(ctx: TgAIContext):
+@app.on_command('help', named_args=['object', 'sample'])
+async def help(ctx: Context):
     print(ctx.state)
     await ctx.msg.reply(
         'Help: {}, {}'.format(
@@ -32,8 +32,8 @@ async def help(ctx: TgAIContext):
     )
 
 
-@app.on_command('tagall', direction=MsgDir.OUT)
-async def tagall(ctx: TgAIContext):
+@app.on_command('tagall')
+async def tagall(ctx: Context):
     users = await ctx.client.get_participants(ctx.msg.chat_id)
     if len(users) > 50:
         return
@@ -44,7 +44,7 @@ async def tagall(ctx: TgAIContext):
 
 
 @app.on_command(['say', 'гл'])
-async def voice_engine(ctx: TgAIContext):
+async def voice_engine(ctx: Context):
     if ctx.msg.out:
         await ctx.msg.delete()
     voice, *rest = ctx.args
@@ -53,7 +53,7 @@ async def voice_engine(ctx: TgAIContext):
 
 
 @app.on_delete()
-async def on_delete(ctx: TgAIContext):
+async def on_delete(ctx: Context):
     autorm = ctx.state.autorm
     stickerids = [i for i in ctx.event.deleted_ids if i in autorm]
     for _id in stickerids:
@@ -65,8 +65,8 @@ async def on_delete(ctx: TgAIContext):
         del autorm[_id]
 
 
-@app.on_command('id', direction=MsgDir.OUT)
-async def id(ctx: TgAIContext):
+@app.on_command('id')
+async def id(ctx: Context):
     msg, client = ctx.msg, ctx.client
 
     await msg.delete()

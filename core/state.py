@@ -2,7 +2,7 @@ from typing import Tuple, Dict
 
 
 class State:
-    '''Tgai serializable state'''
+    '''Telephon's serializable state'''
 
     def __init__(self):
         self.autorm: Dict[int, Tuple[int, int]] = {}
