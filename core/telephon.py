@@ -7,10 +7,11 @@ from aiohttp import ClientSession
 from asyncio import AbstractEventLoop
 import logging as log
 
+from .base import TelephonBase
 from .context import Context
 from .state import State
-from .utils import *
 from .command import CommandExecutor, Command
+from .utils import InitConfig
 
 
 '''
@@ -34,35 +35,29 @@ None - undefined (probably infinite)
 '''
 
 
-class Telephon:
-    def __init__(self, init_config: InitConfig):
-        self.commands = []
+class Telephon(TelephonBase):
+    def __init__(self, init_config: InitConfig = None):
+        if init_config is None:
+            API_ID = os.getenv('API_ID')
+            API_HASH = os.getenv('API_HASH')
+            SESSION_PATH = os.path.abspath('./.sessions/tgai28')
+            init_config = InitConfig(SESSION_PATH, API_ID, API_HASH)
+        super(Telephon, self).__init__(init_config)
+
+        self.commands: List[Command] = []
         # TODO: implement
         self.config: Any = None
-        client = TelegramClient(init_config.session_path,
-                                init_config.api_id,
-                                init_config.api_hash)
-
-        self.client: TelegramClient = client
-        self.http_client: ClientSession = ClientSession(loop=client.loop)
         self.state = State.restore()
 
-        client.add_event_handler(self._on_message, events.NewMessage)
-        client.add_event_handler(self._on_delete, events.MessageDeleted)
+        self.client.add_event_handler(self._on_message, events.NewMessage)
+        self.client.add_event_handler(self._on_delete, events.MessageDeleted)
 
-        log.basicConfig(format='[%(asctime)s] %(message)s',
-                        datefmt='%d.%m.%Y %H:%M:%S',
-                        level=log.INFO)
-
-    def on_command(self,
-                   command: Union[str, List[str]],
-                   args: int = 0,
-                   named_args: List[str] = [],
-                   allow_incoming=False,
-                   only_incoming=False):
-        def wrapper(func):
-            cmdcfg = Command(command, args, named_args,
-                             allow_incoming, only_incoming, callback=func)
+    '''
+    Decorator for command handling
+    '''
+    def on_command(self, *args, **kwargs):
+        def wrapper(callback):
+            cmdcfg = Command(*args, **kwargs)
             self.commands.append(cmdcfg)
         return wrapper
 
@@ -93,27 +88,3 @@ class Telephon:
 
     async def _on_delete(self, event):
         pass
-
-    async def _run_client(self):
-        await self.client.start()
-        log.info('Client started.')
-        await self.client.run_until_disconnected()
-
-    def start(self, loop: Optional[AbstractEventLoop] = None):
-        loop = self.client.loop
-        try:
-            loop.run_until_complete(self._run_client())
-        except KeyboardInterrupt:
-            loop.run_until_complete(self.shutdown())
-        finally:
-            loop.close()
-            log.info('Client loop closed.')
-        return 0
-
-    async def shutdown(self):
-        self.client.remove_event_handler(self._on_message)
-        self.client.remove_event_handler(self._on_delete)
-        log.info('Disconnecting client...')
-        if self.http_client:
-            await self.http_client.close()
-        await self.client.disconnect()
