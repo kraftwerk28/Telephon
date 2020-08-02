@@ -109,3 +109,4 @@ deploy.sh
 *_old.py
 .sessions/
 .scripts/
+.vscode/
