@@ -21,6 +21,7 @@ class Context:
                  event: events.common.EventCommon,
                  args: List[str] = None,
                  named_args: Dict[str, str] = None):
+        self.http_client = telephon.http_client
         self.client: TelegramClient = telephon.client
         self.event: events.common.EventCommon = event
         self.args = args
@@ -31,11 +32,12 @@ class Context:
             self.msg = event.message
 
     async def reply(self,
-                    text: str,
+                    text: str = None,
                     photo: str = None,
                     delete_command_message=False,
                     reply=False,
                     send_to_saves=False,
+                    autodelete=False,
                     **kwargs):
         """
         :param photo: file path to photo
@@ -44,14 +46,23 @@ class Context:
         rest_kwargs = {'parse_mode': 'HTML'}
 
         if msg.out and delete_command_message:
-            await msg.delete()
+            try:
+                await msg.delete()
+            except:
+                pass
 
-        if send_to_saves:
-            await client.send_message('me', text, **rest_kwargs, **kwargs)
+        if text is None:
+            return
+        elif send_to_saves:
+            sent = await client.send_message('me', text, **rest_kwargs, **kwargs)
         elif reply:
-            await msg.reply(text, **rest_kwargs, **kwargs)
+            sent = await msg.reply(text, **rest_kwargs, **kwargs)
         else:
-            await msg.respond(text, **rest_kwargs, **kwargs)
+            sent = await msg.respond(text, **rest_kwargs, **kwargs)
+
+        if autodelete:
+            pass
+
 
     async def edit(self,
                    in_place=False):
