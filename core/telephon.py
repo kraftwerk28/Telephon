@@ -14,7 +14,7 @@ from .command import CommandExecutor, Command
 from .utils import InitConfig
 
 
-'''
+"""
 ### Must define a reaction - they will be returned from customer callbacks
 e.g.:
 @on_command('cmd')
@@ -32,7 +32,7 @@ None - undefined (probably infinite)
 ### Every middleware can:
 - modify Context (which has reference to instance's state and so on)
 - return reaction, which does a lot of work for us (for example, reply to message, clean command message etc)
-'''
+"""
 
 
 class Telephon(TelephonBase):
@@ -52,17 +52,16 @@ class Telephon(TelephonBase):
         self.client.add_event_handler(self._on_message, events.NewMessage)
         self.client.add_event_handler(self._on_delete, events.MessageDeleted)
 
-    '''
-    Decorator for command handling
-    '''
     def on_command(self, *args, **kwargs):
+        """
+        Decorator for command handling
+        """
         def wrapper(callback):
-            cmdcfg = Command(*args, **kwargs)
+            cmdcfg = Command(*args, **kwargs, callback=callback)
             self.commands.append(cmdcfg)
         return wrapper
 
-    def on_text(self,
-                pattern: Union[str, Pattern[AnyStr]]):
+    def on_text(self, pattern: Union[str, Pattern[AnyStr]]):
         pass
 
     def on_event(self):
@@ -72,18 +71,18 @@ class Telephon(TelephonBase):
         pass
 
     def on_delete(self):
-        '''When message is deleted'''
+        """When message is deleted"""
         def wrapper(func):
             pass
         return wrapper
 
     async def _run_commands(self, event):
-        '''Ran by `_on_message` method'''
+        """Ran by `_on_message` method"""
         executor = CommandExecutor(self, event)
         await executor.execute()
 
     async def _on_message(self, event):
-        '''Event handler for telethon internal usage'''
+        """Event handler for telethon internal usage"""
         await self._run_commands(event)
 
     async def _on_delete(self, event):

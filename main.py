@@ -31,7 +31,7 @@ app = TgAI(config)
 
 
 @app.on_command('help', named_args=['object', 'sample'], direction=MsgDir.OUT)
-async def help(ctx: TgAIContext):
+async def help(ctx: Context):
     await ctx.msg.reply(
         'Help: {}, {}'.format(
             ctx.named_args['object'],
@@ -41,7 +41,7 @@ async def help(ctx: TgAIContext):
 
 
 @app.on_command('tagall', direction=MsgDir.OUT)
-async def tagall(ctx: TgAIContext):
+async def tagall(ctx: Context):
     users = await ctx.client.get_participants(ctx.msg.chat_id)
     if len(users) > 50:
         return
@@ -52,7 +52,7 @@ async def tagall(ctx: TgAIContext):
 
 
 @app.on_delete()
-async def on_delete(ctx: TgAIContext):
+async def on_delete(ctx: Context):
     autorm = ctx.state.autorm
     stickerids = [i for i in ctx.event.deleted_ids if i in autorm]
     for id in stickerids:
@@ -65,7 +65,7 @@ async def on_delete(ctx: TgAIContext):
 
 
 @app.on_command('id', argcount=1)
-async def id(ctx: TgAIContext):
+async def id(ctx: Context):
     msg, client = ctx.msg, ctx.client
 
     if msg.out:
@@ -107,7 +107,7 @@ async def id(ctx: TgAIContext):
         await client.send_message('me', text, parse_mode='html')
 
 
-async def flip_sticker(ctx: TgAIContext, msg: tl.custom.message.Message):
+async def flip_sticker(ctx: Context, msg: tl.custom.message.Message):
     temp_path = 'tl.webp'
     await msg.download_media(file=temp_path)
 
@@ -120,8 +120,8 @@ async def flip_sticker(ctx: TgAIContext, msg: tl.custom.message.Message):
     os.remove(temp_path)
 
 
-@app.on_command('flip', direction=MsgDir.OUT)
-async def flip(ctx: TgAIContext):
+@app.on_command('flip')
+async def flip(ctx: Context):
     msg = ctx.msg
     target: tl.custom.Message = await msg.get_reply_message()
     if (target and target.sticker):
@@ -130,8 +130,8 @@ async def flip(ctx: TgAIContext):
         await flip_sticker(ctx, target)
 
 
-@app.on_command(['say', 'гл'], direction=MsgDir.OUT, argcount=-1)
-async def say(ctx: TgAIContext):
+@app.on_command(['say', 'гл'])
+async def say(ctx: Context):
     msg, client, http_client = ctx.msg, ctx.client, ctx.http_client
 
     if msg.out:
@@ -182,8 +182,8 @@ async def say(ctx: TgAIContext):
     os.unlink(input_name)
 
 
-@app.on_command(['фр', 'fr'], direction=MsgDir.OUT, argcount=-1)
-async def framed(ctx: TgAIContext):
+@app.on_command(['фр', 'fr'])
+async def framed(ctx: Context):
     msg, client, state = ctx.msg, ctx.client, ctx.state
     if msg.entities:
         return

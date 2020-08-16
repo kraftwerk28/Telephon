@@ -5,4 +5,6 @@ services:
     image: kraftwerk28/tgai28
     volumes:
       - $HOME/deployments/tgai28/sessions/:/opt/app/sessions/
+    environment:
+      PYTHON_ENV: production
     restart: always

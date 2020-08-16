@@ -2,6 +2,7 @@ import re
 from typing import List
 
 from ..types import *
+from ..constants import *
 from .command import Command
 
 
@@ -22,6 +23,7 @@ class CommandExecutor:
                     command for command in self._telephon.commands
                     if command.matches(token, self._event)
                 ]
+                print('Matched:', matched)
                 for cmd in matched:
                     await self._execute_command(cmd, tokens)
 
@@ -40,7 +42,7 @@ class CommandExecutor:
             for argname in command.named_args:
                 arglist.append((argname, tokens.pop(0) if tokens else None))
             named_args = dict(arglist)
-        else:
+        elif command.args is not None:
             args = []
             argcount = command.args
             if command.args > 0:
