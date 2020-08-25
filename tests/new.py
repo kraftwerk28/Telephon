@@ -12,7 +12,7 @@ from telethon import tl
 
 if os.getenv('PYTHON_ENV') != 'production':
     load_dotenv()
-    # Otherwise .env is loaded by docker
+# Otherwise .env is loaded by docker
 
 log.basicConfig(
     format='[%(asctime)s] %(message)s',
@@ -46,17 +46,22 @@ async def help(ctx: Context):
                     delete_command_message=True)
 
 
-@app.on_command('tagall')
+@app.on_command('tagall', named_args=['limit'], allow_incoming=True)
 async def tagall(ctx: Context):
-    users = await ctx.client.get_participants(ctx.msg.chat_id)
-    if len(users) > 50:
+    msg = ctx.msg
+    users = await ctx.client.get_participants(msg.chat_id)
+    try:
+        limit = int(ctx.named_args['limit'])
+    except:
+        limit = 20
+
+    mentions = [mention(u, with_link=True)
+                for u in users if not u.bot and not u.is_self]
+    if len(mentions) > limit:
         return
-    mentions = [mention(u) for u in users if not u.bot and not u.is_self]
-    print(mentions)
+
     if mentions:
         await ctx.reply(' '.join(mentions), reply=True)
-        # sent = await ctx.msg.respond(' '.join(mentions))
-        # ctx.state.autorm[ctx.msg.id] = (sent.chat_id, sent.id)
 
 
 @app.on_command(['say', 'гл'])
