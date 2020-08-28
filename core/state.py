@@ -13,5 +13,5 @@ class State:
     def save(self):
         pass
 
-    def restore():
+    def restore(filename: str = '') -> 'State':
         return State()

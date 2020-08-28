@@ -39,8 +39,6 @@ class TelephonBase:
         return 0
 
     async def shutdown(self):
-        self.client.remove_event_handler(self._on_message)
-        self.client.remove_event_handler(self._on_delete)
         log.info('Disconnecting client...')
         if self.http_client:
             await self.http_client.close()

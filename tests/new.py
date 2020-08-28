@@ -61,15 +61,15 @@ async def tagall(ctx: Context):
         return
 
     if mentions:
-        await ctx.reply(' '.join(mentions), reply=True)
+        await ctx.reply(' '.join(mentions), reply=True, autodelete=True)
 
 
-@app.on_command(['say', 'гл'])
+@app.on_command(['say', 'гл'], allow_incoming=True)
 async def voice_engine(ctx: Context):
     msg, client, http_client = ctx.msg, ctx.client, ctx.http_client
 
     await ctx.reply(delete_command_message=True)
-    voices = 'maxim nikolai'.split()
+    voices = 'maxim nicolai'.split()
 
     voice = None
     if len(ctx.args) > 0 and ctx.args[0] in voices:
@@ -86,7 +86,7 @@ async def voice_engine(ctx: Context):
 
     input_name, temp_name = 'temp__.wav', 'temp__.ogg'
 
-    req_body = {'phrase': phrase, 'voice': voice or 'nikolai'}
+    req_body = {'phrase': phrase, 'voice': voice or 'maxim'}
     try:
         resp = await http_client.post(
             f'{VOICE_API_URL}/say',
@@ -98,7 +98,7 @@ async def voice_engine(ctx: Context):
                         send_to_saves=True)
         return
 
-    with await open(input_name, 'wb') as f:
+    with open(input_name, 'wb') as f:
         f.write(await resp.read())
 
     subprocess.run(

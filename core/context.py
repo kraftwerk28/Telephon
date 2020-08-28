@@ -21,6 +21,7 @@ class Context:
                  event: events.common.EventCommon,
                  args: List[str] = None,
                  named_args: Dict[str, str] = None):
+        self.state = telephon.state
         self.http_client = telephon.http_client
         self.client: TelegramClient = telephon.client
         self.event: events.common.EventCommon = event
@@ -60,8 +61,8 @@ class Context:
         else:
             sent = await msg.respond(text, **rest_kwargs, **kwargs)
 
-        if autodelete:
-            pass
+        if autodelete and sent:
+            self.state.autorm[msg.id] = (sent.chat_id, sent.id)
 
 
     async def edit(self,

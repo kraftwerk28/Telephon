@@ -1,3 +1,4 @@
+import os
 import re
 from typing import (Callable, List, Any, Union, AnyStr, Tuple,
                     Awaitable, Optional, Pattern, Dict)
@@ -31,7 +32,8 @@ None - undefined (probably infinite)
 
 ### Every middleware can:
 - modify Context (which has reference to instance's state and so on)
-- return reaction, which does a lot of work for us (for example, reply to message, clean command message etc)
+- return reaction, which does a lot of work for us
+  (for example, reply to message, clean command message etc)
 """
 
 
@@ -76,6 +78,11 @@ class Telephon(TelephonBase):
             pass
         return wrapper
 
+    async def shutdown(self):
+        await super().shutdown()
+        self.client.remove_event_handler(self._on_message)
+        self.client.remove_event_handler(self._on_delete)
+
     async def _run_commands(self, event):
         """Ran by `_on_message` method"""
         executor = CommandExecutor(self, event)
@@ -86,4 +93,10 @@ class Telephon(TelephonBase):
         await self._run_commands(event)
 
     async def _on_delete(self, event):
-        pass
+        # Perform auto removing messages
+        ids = [id for id in event.deleted_ids if id in self.state.autorm]
+        for id in ids:
+            chat_id, msg_id = self.state.autorm[id]
+            await self.client.delete_messages(chat_id, msg_id)
+            del self.state.autorm[id]
+        log.info(self.state.autorm)
